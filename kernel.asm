@@ -40,10 +40,9 @@ command_shell:
     je   .process_command  ; if `enter` key
 
 .process_character:
-    xor  cx, cx
-    mov  cl, [command_buffer_count]
-    mov  bp, cx
-    mov  [command_buffer + bp], al
+    xor  bx, bx
+    mov  bl, [command_buffer_count]
+    mov  [command_buffer + bx], al
     inc  byte [command_buffer_count]
     call write_character
     jmp  .get_keyboard_character
@@ -127,9 +126,9 @@ reboot:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 set_video_mode:
-    mov  ah, 0
+    mov  ah, 0  ; function: set video mode
     mov  al, 7  ; 80x25 monochrome text
-    int  0x10   ; Invoke display driver
+    int  0x10   ; invoke display driver
     ret
 
 
