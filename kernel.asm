@@ -40,20 +40,20 @@ command_shell:
     je   .process_command  ; if `enter` key
 
 .process_character:
-    xor  bx, bx
-    mov  bl, [command_buffer_count]
-    mov  [command_buffer + bx], al
-    inc  byte [command_buffer_count]
+    xor  bx, bx                       ; clear BX
+    mov  bl, [command_buffer_count]   ; copy length of buffer content
+    mov  [command_buffer + bx], al    ; append character to buffer content
+    inc  byte [command_buffer_count]  ; increment length of buffer content
     call write_character
     jmp  .get_keyboard_character
 
 .process_command:
     call write_blank_line
-    xor  cx, cx
-    mov  cl, [command_buffer_count]
-    mov  si, command_buffer
+    xor  cx, cx                          ; clear CX
+    mov  cl, [command_buffer_count]      ; copy length into CL
+    mov  si, command_buffer              ; point to command_buffer string
     call write_string_sized
-    mov  byte [command_buffer_count], 0
+    mov  byte [command_buffer_count], 0  ; reset length to 0
     jmp  .write_prompt
 
     jmp  $  ; effectively halt machine
@@ -78,7 +78,7 @@ clear_screen:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 get_initial_video_mode:
-    int  11h  ; function: get bios equipment flags
+    int  11h             ; function: get bios equipment flags
     and  ax, 11_0000b
     cmp  ax, 00_0000b
     je   return_unused_string
@@ -91,7 +91,7 @@ get_initial_video_mode:
 
     mov  si, error_sz
     call write_line
-    jmp  $  ; endless loop
+    jmp  $  ; endless loop, effectively halt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 get_current_video_mode:
@@ -128,49 +128,53 @@ reboot:
 set_video_mode:
     mov  ah, 0  ; function: set video mode
     mov  al, 7  ; 80x25 monochrome text
-    int  0x10   ; invoke display driver
+    int  0x10   ; invoke video driver
     ret
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 write_number:
-    add  al, 48
+    add  al, 48     ; convert number into ASCII equivalent
+    ; fall through
 
-write_character:  ; from AL
-    mov  ah, 0xE
-    int  0x10
+write_character:
+    mov  ah, 0xE    ; function: write character from AL
+    int  0x10       ; invoke video driver
     ret
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 write_blank_line:
     mov  si, empty_sz
+    ; fall through
 
 write_line:
     call write_string
     mov  si, newline_sz
+    ; fall through
 
-write_string:  ; from DS:SI
+write_string:     ; zero-terminated, at DS:SI
 .loop:
-    lodsb         ; Load string byte from DS:SI into AL
-    cmp  al, 0    ; Test for "NULL" 0 byte, signaling end of string
-    je   .done    ; Jump out of loop if AL equaled 0
-    mov  ah, 0xE  ; Write character in teletype mode
-    int  0x10     ; Invoke display driver
+    lodsb         ; load string byte from DS:SI into AL
+    cmp  al, 0    ; test for "NULL" 0 byte, signaling end of string
+    je   .done    ; jump out of loop if AL equaled 0
+    mov  ah, 0xE  ; function: write character in teletype mode
+    int  0x10     ; invoke video driver
     jmp  .loop
 .done:
     ret
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-write_string_sized:  ; from DS:SI, size in CX
-    cmp  cx, 0
-    je   .done
+; DS:SI=string pointer, CX=string length
+write_string_sized:
+    cmp  cx, 0    ; check if string length is zero
+    je   .done    ; abort if string length is zero
 .loop:
-    lodsb
-    mov  ah, 0Eh
-    int  10h
-    loop .loop
+    lodsb         ; load string byte into AL, from DS:SI
+    mov  ah, 0Eh  ; function: write character in teletype mode
+    int  10h      ; invoke video driver
+    loop .loop    ; decrement CX and loop
 .done:
     ret
 
